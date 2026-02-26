@@ -1,0 +1,2336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOVIE ARCADE | Cinema AI</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600&family=Playfair+Display:ital,wght@1,600&family=Cinzel:wght@600;800&family=Lora:ital,wght@0,400;0,600;1,400&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #0a0a0a;
+            --gold-primary: #FFD700;
+            --gold-secondary: #C9A84C;
+            --gold-shine: #FFF5B0;
+            --red-carpet: #8B0000;
+            --cream: #F5F0E0;
+            --glass: rgba(255, 215, 0, 0.05);
+            --mouse-x: 50vw;
+            --mouse-y: 50vh;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background-color: var(--primary-bg);
+            color: var(--cream);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(255,215,0,0.1) 0%, transparent 40%),
+                radial-gradient(circle at 100% 0%, rgba(255,215,0,0.1) 0%, transparent 40%),
+                repeating-linear-gradient(45deg, rgba(139, 0, 0, 0.03) 0px, rgba(139, 0, 0, 0.03) 10px, transparent 10px, transparent 20px);
+        }
+
+        /* Cursor Spotlight */
+        .cursor-spotlight {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 100; opacity: 0.08;
+            background: radial-gradient(circle 300px at var(--mouse-x) var(--mouse-y), var(--gold-primary), transparent);
+            transition: opacity 0.3s ease;
+        }
+        @media (hover: none) and (pointer: coarse) { .cursor-spotlight { display: none; } }
+
+        /* Floating Gold Particles */
+        .gold-particle {
+            position: fixed;
+            background: var(--gold-shine);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 0;
+            animation: floatUp 15s linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateY(-20vh) scale(1.5); opacity: 0; }
+        }
+
+        h1, h2, h3, .bebas { font-family: 'Bebas Neue', cursive; letter-spacing: 2px; }
+
+        /* Cinematic Letterbox Transition */
+        .cinematic-bars {
+            position: fixed; left: 0; width: 100vw; height: 0;
+            background: #000; z-index: 9999;
+            transition: height 0.6s cubic-bezier(0.85, 0, 0.15, 1);
+            pointer-events: none;
+            display: flex; justify-content: center; overflow: hidden;
+        }
+        .cinematic-bar-top { top: 0; align-items: flex-end; }
+        .cinematic-bar-bottom { bottom: 0; align-items: flex-start; }
+        
+        .cinematic-active .cinematic-bars { height: 50vh; }
+        
+        /* Film Flash Effect */
+        .film-flash {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #fff; z-index: 10000; opacity: 0; pointer-events: none;
+        }
+        .flash-active { animation: flashBurst 0.1s ease-out; }
+        @keyframes flashBurst { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+        #app-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 2rem;
+            position: relative;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            justify-content: center;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            width: 100%;
+            text-align: center;
+            animation: fadeIn 0.8s ease-in-out forwards;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* HEADER COMMON */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+            width: 100%;
+            position: relative;
+        }
+        .header::after {
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+        }
+
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: var(--gold);
+        }
+
+        .stat-badge span {
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        /* BACK BUTTON */
+        .btn-back {
+            background: rgba(0,0,0,0.5);
+            color: var(--gold-secondary);
+            border: 1px solid var(--gold-secondary);
+            padding: 8px 20px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Bebas Neue', serif;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .btn-back:hover {
+            color: #0a0a0a;
+            background: var(--gold-secondary);
+            box-shadow: 0 0 15px rgba(255,215,0,0.3);
+        }
+
+        /* Arcade Landing Page */
+        .title-giant {
+            font-size: 4.5rem;
+            color: var(--gold);
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            margin-bottom: 0.5rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+        }
+
+        /* Arcade Landing Page Game Cards */
+        .arcade-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2.5rem;
+            justify-items: center;
+            max-width: 900px;
+            width: 100%;
+            perspective: 1000px; /* Essential for 3D tilt */
+        }
+
+        .arcade-card {
+            background: var(--glass);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 16px;
+            padding: 2.5rem 1.5rem;
+            width: 320px;
+            height: 420px;
+            text-align: center;
+            transition: transform 0.1s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255,215,0,0.02);
+            backdrop-filter: blur(10px);
+            position: relative;
+            transform-style: preserve-3d;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .arcade-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transform: skewX(-20deg);
+            transition: 0s;
+            z-index: 1;
+        }
+
+        .arcade-card:hover {
+            border-color: var(--gold-primary);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.2), inset 0 0 30px rgba(255,215,0,0.05);
+            z-index: 2;
+        }
+
+        .arcade-card:hover::before {
+            left: 200%;
+            transition: left 0.7s ease-in-out;
+        }
+        
+        .arcade-card:active {
+            transform: scale(0.97) !important;
+            transition: transform 0.1s;
+        }
+
+        .ac-icon {
+            font-size: 5rem;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.8));
+            transition: transform 0.3s ease;
+            transform: translateZ(40px);
+        }
+        .arcade-card:hover .ac-icon { transform: translateZ(50px) scale(1.1); }
+
+        .ac-title {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: 1.8rem;
+            color: var(--gold-shine);
+            margin-bottom: 0.5rem;
+            transform: translateZ(30px);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            padding-bottom: 5px;
+            width: 80%;
+        }
+
+        .ac-desc {
+            color: var(--cream);
+            font-size: 1.05rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+            transform: translateZ(20px);
+            font-style: italic;
+        }
+
+        /* Common Elements & Hollywood Buttons */
+        .btn {
+            background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
+            color: #0a0a0a;
+            border: none;
+            padding: 14px 40px;
+            font-size: 1.25rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Bebas Neue', cursive;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transform: translateZ(30px);
+        }
+
+        .btn:hover {
+            filter: brightness(1.2);
+            transform: translateY(-2px) translateZ(30px);
+            box-shadow: 0 5px 30px rgba(255, 215, 0, 0.6);
+        }
+
+        .btn:disabled {
+            background: #222;
+            color: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .diff-btn {
+            background: transparent;
+            border: 2px solid var(--text-muted);
+            color: var(--text-muted);
+            padding: 0.5rem 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .diff-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .diff-btn.selected {
+            background: var(--gold);
+            color: var(--bg-color);
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+
+        /* Game Inputs & Feedback */
+        .input-group {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            justify-content: center;
+            max-width: 700px;
+            position: relative;
+        }
+
+        .guess-input {
+            flex-grow: 1;
+            background: #111;
+            border: 1px solid var(--gold-secondary);
+            color: var(--gold-shine);
+            padding: 1rem 1.5rem;
+            font-size: 1.4rem;
+            border-radius: 4px;
+            font-family: 'Cormorant Garamond', serif;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+        }
+        .guess-input::placeholder { color: rgba(201, 168, 76, 0.4); font-style: italic; }
+
+        .guess-input:focus {
+            outline: none;
+            border-color: var(--gold-primary);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2), inset 0 2px 5px rgba(0,0,0,0.8);
+        }
+
+        .attempts-display {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .attempt-dot {
+            width: 14px; height: 14px;
+            background: transparent;
+            border: 2px solid var(--gold-primary);
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.3s;
+            box-shadow: inset 0 0 5px var(--gold-shine), 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+
+        .attempt-dot.lost {
+            background: #222; border-color: #444; box-shadow: none; opacity: 0.3;
+        }
+
+        .feedback {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: 1.5rem;
+            min-height: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .feedback.correct {
+            color: var(--gold-shine);
+            font-size: 2.5rem;
+            text-shadow: 0 0 30px var(--gold-primary);
+            animation: pulseScale 1s ease-in-out infinite;
+        }
+        @keyframes pulseScale { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        .feedback.wrong {
+            color: var(--red-carpet);
+            text-shadow: 0 0 10px #ff0000;
+        }
+
+        .feedback.info { color: var(--gold-secondary); }
+
+        /* Loader */
+        .loader {
+            display: none;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--gold);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            font-size: 2.5rem;
+            animation: fall linear forwards;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-10vh) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(110vh) rotate(720deg);
+                opacity: 0.5;
+            }
+        }
+
+        /* Game 1 Specifics */
+        .clue-box {
+            background: linear-gradient(180deg, #1c1813 0%, #0a0a0a 100%);
+            border: 2px solid var(--gold-secondary);
+            border-radius: 4px;
+            padding: 2.5rem 2rem 2rem 2rem;
+            margin-bottom: 2rem;
+            width: 100%;
+            max-width: 700px;
+            text-align: left;
+            position: relative;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9), 0 10px 30px rgba(0, 0, 0, 0.8);
+        }
+
+        .clue-box::before {
+            content: "🎬 CLUE DOSSIER";
+            position: absolute;
+            top: -15px; left: 20px;
+            background: #111;
+            padding: 0 15px;
+            font-family: 'Cinzel Decorative', serif;
+            color: var(--gold-primary);
+            font-size: 1.2rem;
+            border: 1px solid var(--gold-secondary);
+            box-shadow: 0 0 10px rgba(255,215,0,0.2);
+        }
+
+        .plot-text {
+            font-size: 1.3rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            font-style: italic;
+            border-left: 2px solid var(--gold-primary);
+            padding-left: 1.5rem;
+            color: var(--gold-shine);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        }
+
+        .actors-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .actor-tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+
+        .extra-hints {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .hint-item {
+            color: var(--gold-shine);
+            font-size: 1.1rem;
+            display: none;
+            background: rgba(255, 215, 0, 0.05);
+            padding: 10px 15px;
+            border-radius: 4px;
+            border-left: 3px solid var(--gold-primary);
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        /* Game 2 Specifics */
+        .poster-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            max-width: 600px;
+            margin: 0 auto 1.5rem auto;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
+            position: relative;
+            border: 4px solid var(--gold-secondary);
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .tmdb-poster {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        .title-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 15%;
+            background: rgba(10,10,10,0.9);
+            border-bottom: 2px solid var(--gold-primary);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Cinzel Decorative', serif;
+            color: var(--gold-shine); font-size: 1.2rem; letter-spacing: 3px;
+        }
+
+        .g2-hints-area {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .g2-static-hint {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .g2-gemini-hintbox {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 10px;
+            padding: 1.2rem;
+            display: none;
+            margin-top: 10px;
+            text-align: left;
+            font-style: italic;
+            color: #ddd;
+            position: relative;
+        }
+
+        .g2-gemini-hintbox::before {
+            content: "✨ AI HINT";
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: #000;
+            padding: 0 5px;
+            font-family: 'Bebas Neue';
+            color: var(--gold);
+            font-size: 0.9rem;
+        }
+
+        .details-card {
+            background: var(--glass);
+            border: 1px solid var(--gold-secondary);
+            border-top: 3px solid var(--gold-primary);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 1.5rem;
+            width: 100%; max-width: 600px;
+            display: none; text-align: left;
+            animation: fadeIn 0.8s ease forwards;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 30px rgba(255,215,0,0.05);
+        }
+
+        .dc-title { font-family: 'Cinzel Decorative', serif; font-size: 2.5rem; color: var(--gold-shine); margin-bottom: 1rem; border-bottom: 1px solid rgba(255,215,0,0.2); padding-bottom: 0.5rem; }
+        .dc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; font-size: 1.1rem; color: var(--cream); }
+        .dc-plot { font-size: 1rem; color: rgba(245,240,224,0.8); line-height: 1.5; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem; font-style: italic; }
+
+        /* Game 3 Specifics */
+        .g3-quote-container {
+            width: 100%; max-width: 800px; margin: 0 auto 2rem auto;
+            position: relative; padding: 3rem 4rem;
+        }
+        .g3-quote-container::before {
+            content: '"'; position: absolute; top: -40px; left: -20px;
+            font-family: 'Cinzel Decorative', serif; font-size: 12rem; color: rgba(255,215,0,0.15); line-height: 1;
+        }
+        .g3-quote-text {
+            font-family: 'Cormorant Garamond', serif; font-size: 2.2rem;
+            font-style: italic; line-height: 1.4; color: var(--gold-shine);
+            text-shadow: 0 4px 15px rgba(0,0,0,0.9); position: relative; z-index: 2;
+        }
+
+        .g3-hints-area {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto 2rem auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .g3-hint-box {
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            padding: 1.2rem;
+            text-align: left;
+            display: none;
+            animation: slideUpFade 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .g3-hint-box::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+        }
+
+        #g3-hint-actor::before {
+            background: #FFD700;
+        }
+
+        #g3-hint-genre::before {
+            background: #FFA500;
+        }
+
+        #g3-hint-scene::before {
+            background: #ff7b00;
+        }
+
+        .g3-hint-content {
+            font-size: 1.1rem;
+            color: #e0e0e0;
+            margin-left: 10px;
+        }
+
+        .g3-dc-quote {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 1.3rem;
+            color: var(--gold);
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .g3-fun-fact {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #bbb;
+            border-left: 3px solid var(--gold);
+            margin-top: 1rem;
+        }
+
+        /* Game 4: Newspaper Specifics */
+        .g4-newspaper {
+            background: #F5F0E8;
+            color: #1a1a1a;
+            padding: 2rem 3rem;
+            max-width: 800px;
+            margin: 0 auto 2rem auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.05);
+            border: 1px solid #d4cbb8;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .g4-newspaper::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,0 Q5,20 10,0 T20,0 T30,0 T40,0 T50,0 T60,0 T70,0 T80,0 T90,0 T100,0 L100,20 L0,20 Z" fill="%230a0a0a"/></svg>') repeat-x;
+            background-size: 20px 20px;
+        }
+
+        .g4-np-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 800;
+            font-size: 4rem;
+            text-align: center;
+            border-bottom: 4px solid #1a1a1a;
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .g4-np-meta {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .g4-np-breaking {
+            background: #CC0000;
+            color: white;
+            display: inline-block;
+            padding: 3px 10px;
+            font-family: 'Bebas Neue';
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .g4-np-headline {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+            text-align: left;
+        }
+
+        .g4-np-subhead {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 1.5rem;
+            color: #444;
+            margin-bottom: 1.5rem;
+            line-height: 1.3;
+            font-weight: 400;
+            border-bottom: 2px solid #1a1a1a;
+            padding-bottom: 1.5rem;
+        }
+
+        .g4-np-body {
+            display: column;
+            font-family: 'Lora', serif;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: justify;
+            columns: 2;
+            column-gap: 2rem;
+            color: #222;
+        }
+
+        .g4-np-body p {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .g4-np-reporter {
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            display: block;
+            column-span: all;
+        }
+
+        .g4-editors-notes {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .g4-hint-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-left: 4px solid #CC0000;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+            animation: slideUpFade 0.5s ease forwards;
+        }
+
+        .g4-hint-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #CC0000;
+            margin-bottom: 0.3rem;
+            letter-spacing: 1px;
+        }
+
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Categories */
+        .category-selector {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .cat-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem 1rem;
+            width: 200px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .cat-card:hover {
+            border-color: var(--gold);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .cat-card.selected {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .cat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .cat-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 0.5rem;
+        }
+
+        .cat-desc {
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        @media (max-width: 600px) {
+            .arcade-card {
+                width: 100%;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .title-giant {
+                font-size: 3rem;
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .dc-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cat-card {
+                width: 100%;
+                max-width: 250px;
+            }
+
+            .g4-newspaper {
+                padding: 1.5rem 1rem;
+            }
+
+            .g4-np-title {
+                font-size: 2.5rem;
+            }
+
+            .g4-np-headline {
+                font-size: 2.2rem;
+            }
+
+            .g4-np-body {
+                columns: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="curtains-open">
+    <div class="film-grain"></div>
+    <div class="curtain left" id="left-curtain"></div>
+    <div class="curtain right" id="right-curtain"></div>
+
+    <div id="app-container">
+        <!-- ========================================== -->
+        <!-- LANDING SCREEN -->
+        <!-- ========================================== -->
+        <div class="screen active" id="landing-screen">
+            <h1 class="title-giant"><span>🍿</span> CINEMA AI ARCADE</h1>
+            <p class="subtitle">Select your cinematic trivia challenge</p>
+
+            <div class="arcade-cards">
+                <!-- Card 1 -->
+                <div class="arcade-card" onclick="initGame1()">
+                    <div class="ac-icon">🎭</div>
+                    <h2 class="ac-title bebas">Guess by Plot</h2>
+                    <p class="ac-desc">Read the cryptic clues generated by Gemini AI and name the movie!</p>
+                    <button class="btn">PLAY NOW 🚀</button>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="arcade-card" onclick="initGame2()">
+                    <div class="ac-icon">🖼️</div>
+                    <h2 class="ac-title bebas">Guess by Poster</h2>
+                    <p class="ac-desc">Can you name the film from a heavily blurred TMDB poster?</p>
+                    <button class="btn">PLAY NOW 🎥</button>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="arcade-card" onclick="initGame3()">
+                    <div class="ac-icon">💬</div>
+                    <h2 class="ac-title bebas">Guess The Quote</h2>
+                    <p class="ac-desc">Can you name the movie from its most iconic dialogue?</p>
+                    <button class="btn">PLAY NOW 🎟️</button>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="arcade-card" onclick="initGame4()">
+                    <div class="ac-icon">📰</div>
+                    <h2 class="ac-title bebas">Breaking News</h2>
+                    <p class="ac-desc">Real events. Fake headlines. Which movie is making the news today?</p>
+                    <button class="btn">READ ALL ABOUT IT 🗞️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- GAME 1: PLOT GUESSER -->
+        <!-- ========================================== -->
+        <div class="screen" id="game-1-screen">
+            <div class="header">
+                <div>
+                    <button class="btn-back" onclick="goToLanding()">← Back</button>
+                    <span class="bebas" style="font-size: 1.5rem; margin-left: 15px;">🎭 PLOT GUESSER</span>
+                </div>
+                <div class="stats">
+                    <div class="stat-badge" title="Score">🏆 <span id="g1-score">0</span></div>
+                    <div class="stat-badge" title="Streak">🔥 <span id="g1-streak">0</span></div>
+                </div>
+            </div>
+
+            <div class="clue-box">
+                <div class="plot-text" id="g1-clue-plot">Loading...</div>
+                <div class="actors-list" id="g1-clue-actors"></div>
+                <div class="extra-hints" id="g1-extra-hints">
+                    <div class="hint-item" id="g1-hint-1"><strong>🍿 Genre & Decade:</strong> <span
+                            id="g1-hint-genre"></span></div>
+                    <div class="hint-item" id="g1-hint-2"><strong>🎬 Director:</strong> <span
+                            id="g1-hint-director"></span></div>
+                    <div class="hint-item" id="g1-hint-3"><strong>💡 Bonus Hint:</strong> <span
+                            id="g1-hint-extra"></span></div>
+                </div>
+            </div>
+
+            <div class="attempts-display">
+                Attempts Remaining:
+                <span class="attempt-dot g1-dot"></span>
+                <span class="attempt-dot g1-dot"></span>
+                <span class="attempt-dot g1-dot"></span>
+            </div>
+
+            <div class="input-group" id="g1-input-area" style="display:none;">
+                <input type="text" id="g1-guess-input" class="guess-input" placeholder="Name that movie..."
+                    autocomplete="off">
+                <button class="btn" id="g1-submit-btn">Guess</button>
+            </div>
+
+            <div class="feedback" id="g1-feedback"></div>
+
+            <div class="loader" id="g1-loader"></div>
+
+            <div id="g1-setup-area">
+                <p>Select Difficulty:</p>
+                <div class="difficulty-selector" id="g1-difficulty">
+                    <button class="diff-btn g1-diff" data-diff="Easy">Easy</button>
+                    <button class="diff-btn g1-diff" data-diff="Medium">Medium</button>
+                    <button class="diff-btn g1-diff" data-diff="Hard">Hard</button>
+                </div>
+                <button class="btn" id="g1-start-btn">Generate Clues</button>
+            </div>
+
+            <button class="btn" id="g1-next-btn"
+                style="display: none; margin-top: 1rem; width: 100%; max-width:600px;">Next Movie 🎞️</button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- GAME 2: POSTER GUESSER -->
+        <!-- ========================================== -->
+        <div class="screen" id="game-2-screen">
+            <div class="header">
+                <div>
+                    <button class="btn-back" onclick="goToLanding()">← Back</button>
+                    <span class="bebas" style="font-size: 1.5rem; margin-left: 15px;">🖼️ POSTER GUESSER</span>
+                </div>
+                <div class="stats">
+                    <div class="stat-badge" title="Score">🌟 <span id="g2-score">0</span></div>
+                    <div class="stat-badge" title="Best Streak">🔥 <span id="g2-best-streak">0</span> (<span
+                            id="g2-streak">0</span>)</div>
+                </div>
+            </div>
+
+            <div id="g2-game-content" style="display:none; width:100%; align-items:center; flex-direction:column;">
+                <div class="poster-container">
+                    <img id="g2-poster" class="tmdb-poster" src="" alt="Movie Backdrop">
+                    <div class="title-bar">🎬 WHAT'S THIS MOVIE?</div>
+                </div>
+
+                <div class="g2-hints-area">
+                    <div class="g2-static-hint"><strong>🎭 Genre:</strong> <span id="g2-genre">...</span>
+                        &nbsp;&nbsp;|&nbsp;&nbsp; <strong>📅 Decade:</strong> <span id="g2-decade">...</span></div>
+                    <div class="g2-gemini-hintbox" id="g2-gemini-hint">...</div>
+                </div>
+
+                <div class="attempts-display">
+                    Attempts Remaining:
+                    <span class="attempt-dot g2-dot"></span>
+                    <span class="attempt-dot g2-dot"></span>
+                    <span class="attempt-dot g2-dot"></span>
+                </div>
+
+                <div class="input-group" id="g2-input-area">
+                    <input type="text" id="g2-guess-input" class="guess-input"
+                        placeholder="Guess the movie from the poster..." autocomplete="off">
+                    <button class="btn" id="g2-submit-btn">Reveal</button>
+                </div>
+
+                <div class="feedback" id="g2-feedback"></div>
+
+                <!-- Game 2 Detailed Reveal Card -->
+                <div class="details-card" id="g2-details-card">
+                    <h3 class="dc-title bebas" id="g2-dc-title">TITLE</h3>
+                    <div class="dc-grid">
+                        <div><strong>Director:</strong> <span id="g2-dc-director"></span></div>
+                        <div><strong>Release:</strong> <span id="g2-dc-year"></span></div>
+                        <div><strong>Cast:</strong> <span id="g2-dc-cast"></span></div>
+                        <div><strong>Rating:</strong> ⭐ <span id="g2-dc-rating"></span>/10</div>
+                    </div>
+                    <div class="dc-plot" id="g2-dc-plot"></div>
+                </div>
+
+                <button class="btn" id="g2-next-btn"
+                    style="display: none; margin-top: 1.5rem; width: 100%; max-width:600px;">Next Poster 🖼️</button>
+            </div>
+
+            <div class="loader" id="g2-loader"></div>
+
+            <div id="g2-setup-area">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--gold);">1. Select Category:</p>
+                <div class="category-selector" id="g2-category">
+                    <!-- Categories will be injected here -->
+                </div>
+
+                <p style="font-size: 1.2rem; margin-bottom: 1rem; margin-top: 1rem; color: var(--gold);">2. Select
+                    Difficulty:</p>
+                <div class="difficulty-selector" id="g2-difficulty">
+                    <button class="diff-btn g2-diff" data-diff="Easy">🟢 Easy</button>
+                    <button class="diff-btn g2-diff" data-diff="Medium">🟡 Medium</button>
+                    <button class="diff-btn g2-diff" data-diff="Hard">🔴 Hard</button>
+                </div>
+                <button class="btn" id="g2-start-btn"
+                    style="margin-top: 1rem; font-size: 1.5rem; padding: 1rem 3rem;">Start Game 🎬</button>
+            </div>
+
+            <p class="feedback info" id="g2-error" style="margin-top:1rem;"></p>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- GAME 3: GUESS THE QUOTE -->
+        <!-- ========================================== -->
+        <div class="screen" id="game-3-screen">
+            <div class="header">
+                <div>
+                    <button class="btn-back" onclick="goToLanding()">← Back</button>
+                    <span class="bebas" style="font-size: 1.5rem; margin-left: 15px;">💬 QUOTE GUESSER</span>
+                </div>
+                <div class="stats">
+                    <div class="stat-badge" title="Score">🌟 <span id="g3-score">0</span></div>
+                    <div class="stat-badge" title="Streak">🔥 <span id="g3-streak">0</span></div>
+                </div>
+            </div>
+
+            <div id="g3-game-content" style="display:none; width:100%; align-items:center; flex-direction:column;">
+                <div class="g3-quote-container">
+                    <div class="g3-quote-text" id="g3-quote-text">...</div>
+                </div>
+
+                <div class="g3-hints-area">
+                    <div class="g3-hint-box" id="g3-hint-actor">
+                        <strong>🎭 Said by:</strong> <span class="g3-hint-content" id="g3-hint-actor-val"></span>
+                    </div>
+                    <div class="g3-hint-box" id="g3-hint-genre">
+                        <strong>🍿 Film Type:</strong> <span class="g3-hint-content" id="g3-hint-genre-val"></span>
+                    </div>
+                    <div class="g3-hint-box" id="g3-hint-scene">
+                        <strong>🎬 The Scene:</strong> <span class="g3-hint-content" id="g3-hint-scene-val"></span>
+                    </div>
+                </div>
+
+                <div class="attempts-display" style="font-size: 1.5rem;">
+                    <span class="attempt-dot g3-dot" style="background:none; box-shadow:none;">🎬</span>
+                    <span class="attempt-dot g3-dot" style="background:none; box-shadow:none;">🎬</span>
+                    <span class="attempt-dot g3-dot" style="background:none; box-shadow:none;">🎬</span>
+                </div>
+
+                <div class="input-group" id="g3-input-area">
+                    <input type="text" id="g3-guess-input" class="guess-input" placeholder="Name this movie..."
+                        autocomplete="off">
+                    <button class="btn" id="g3-submit-btn">Guess</button>
+                </div>
+
+                <div class="feedback" id="g3-feedback"></div>
+
+                <!-- Game 3 Detailed Reveal Card -->
+                <div class="details-card" id="g3-details-card">
+                    <h3 class="dc-title bebas" id="g3-dc-title">TITLE</h3>
+                    <div class="g3-dc-quote" id="g3-dc-quote-full"></div>
+                    <div class="dc-grid">
+                        <div><strong>Actor:</strong> <span id="g3-dc-actor"></span></div>
+                        <div><strong>Character:</strong> <span id="g3-dc-char"></span></div>
+                        <div><strong>Release:</strong> <span id="g3-dc-year"></span></div>
+                        <div id="g3-dc-rating-container" style="display:none;"><strong>Rating:</strong> ⭐ <span
+                                id="g3-dc-rating"></span>/10</div>
+                    </div>
+                    <div class="g3-fun-fact" id="g3-dc-funfact"></div>
+                </div>
+
+                <button class="btn" id="g3-next-btn"
+                    style="display: none; margin-top: 1.5rem; width: 100%; max-width:600px;">Next Quote 🎟️</button>
+            </div>
+
+            <div class="loader" id="g3-loader"></div>
+
+            <div id="g3-setup-area">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--gold);">1. Select Era & Genre:</p>
+                <div class="category-selector" id="g3-category">
+                    <!-- Categories will be injected here -->
+                </div>
+
+                <p style="font-size: 1.2rem; margin-bottom: 1rem; margin-top: 1rem; color: var(--gold);">2. Select
+                    Difficulty:</p>
+                <div class="difficulty-selector" id="g3-difficulty">
+                    <button class="diff-btn g3-diff" data-diff="Easy">🟢 Easy</button>
+                    <button class="diff-btn g3-diff" data-diff="Medium">🟡 Medium</button>
+                    <button class="diff-btn g3-diff" data-diff="Hard">🔴 Hard</button>
+                </div>
+                <button class="btn" id="g3-start-btn"
+                    style="margin-top: 1rem; font-size: 1.5rem; padding: 1rem 3rem;">Generate Quote 🎬</button>
+            </div>
+
+            <p class="feedback info" id="g3-error" style="margin-top:1rem;"></p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GAME 4: BREAKING NEWS -->
+    <!-- ========================================== -->
+    <div class="screen" id="game-4-screen">
+        <div class="header" style="background: rgba(0,0,0,0.8); margin-bottom: 2rem;">
+            <div>
+                <button class="btn-back" onclick="goToLanding()">← Back</button>
+                <span class="bebas" style="font-size: 1.5rem; margin-left: 15px;">📰 BREAKING NEWS</span>
+            </div>
+            <div class="stats">
+                <div class="stat-badge" title="Score">🌟 <span id="g4-score">0</span></div>
+                <div class="stat-badge" title="Streak">🔥 <span id="g4-streak">0</span></div>
+            </div>
+        </div>
+
+        <div id="g4-game-content" style="display:none; width:100%; align-items:center; flex-direction:column;">
+
+            <div class="g4-newspaper">
+                <div class="g4-np-title">THE MOVIE TIMES</div>
+                <div class="g4-np-meta">
+                    <span>Vol. 1 • No. 1</span>
+                    <span id="g4-np-date">Today</span>
+                    <span id="g4-np-cat">World News</span>
+                </div>
+
+                <div class="g4-np-breaking">BREAKING EXCLUSIVE</div>
+                <h1 class="g4-np-headline" id="g4-np-headline">Loading Headline...</h1>
+                <h3 class="g4-np-subhead" id="g4-np-subhead">Sourcing reliable intel...</h3>
+
+                <div class="g4-np-body">
+                    <span class="g4-np-reporter">By <span id="g4-np-reporter">Scoop</span></span>
+                    <p id="g4-np-article">...</p>
+                </div>
+            </div>
+
+            <div class="g4-editors-notes" style="margin-bottom: 2rem;">
+                <div class="g4-hint-card" id="g4-hint-1-box">
+                    <div class="g4-hint-title">EDITOR'S NOTE: CONTEXT</div>
+                    <div class="g3-hint-content" id="g4-hint-1-val"></div>
+                </div>
+                <div class="g4-hint-card" id="g4-hint-2-box">
+                    <div class="g4-hint-title">EDITOR'S NOTE: KEY FIGURE</div>
+                    <div class="g3-hint-content" id="g4-hint-2-val"></div>
+                </div>
+                <div class="g4-hint-card" id="g4-hint-3-box">
+                    <div class="g4-hint-title">EDITOR'S NOTE: THEME</div>
+                    <div class="g3-hint-content" id="g4-hint-3-val"></div>
+                </div>
+            </div>
+
+            <div class="attempts-display" style="font-size: 1.5rem;">
+                <span class="attempt-dot g4-dot" style="background:none; box-shadow:none;">📰</span>
+                <span class="attempt-dot g4-dot" style="background:none; box-shadow:none;">📰</span>
+                <span class="attempt-dot g4-dot" style="background:none; box-shadow:none;">📰</span>
+            </div>
+
+            <div class="input-group" id="g4-input-area">
+                <input type="text" id="g4-guess-input" class="guess-input" placeholder="Which movie is this about?"
+                    autocomplete="off">
+                <button class="btn" id="g4-submit-btn">Read All About It</button>
+            </div>
+
+            <div class="feedback" id="g4-feedback"></div>
+
+            <!-- Game 4 Detailed Reveal Card -->
+            <div class="details-card" id="g4-details-card">
+                <h3 class="dc-title bebas" id="g4-dc-title">TITLE</h3>
+                <div class="g3-dc-quote" id="g4-dc-headline"
+                    style="color:#d4cbb8; border-color:#555; font-family:'Cinzel',serif; font-style:normal;"></div>
+                <div class="dc-grid">
+                    <div><strong>Release:</strong> <span id="g4-dc-year"></span></div>
+                    <div><strong>Category:</strong> <span id="g4-dc-cat"></span></div>
+                </div>
+                <div class="g3-fun-fact" id="g4-dc-funfact" style="border-left-color:#CC0000;"></div>
+            </div>
+
+            <button class="btn" id="g4-next-btn"
+                style="display: none; margin-top: 1.5rem; width: 100%; max-width:600px;">Next Headline 🗞️</button>
+        </div>
+
+        <div class="loader" id="g4-loader"></div>
+
+        <div id="g4-setup-area">
+            <p style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--gold);">1. Select News Category:</p>
+            <div class="category-selector" id="g4-category">
+                <!-- Categories will be injected here -->
+            </div>
+
+            <p style="font-size: 1.2rem; margin-bottom: 1rem; margin-top: 1rem; color: var(--gold);">2. Select
+                Difficulty:</p>
+            <div class="difficulty-selector" id="g4-difficulty">
+                <button class="diff-btn g4-diff" data-diff="Easy">🟢 Easy</button>
+                <button class="diff-btn g4-diff" data-diff="Medium">🟡 Medium</button>
+                <button class="diff-btn g4-diff" data-diff="Hard">🔴 Hard</button>
+            </div>
+            <button class="btn" id="g4-start-btn" style="margin-top: 1rem; font-size: 1.5rem; padding: 1rem 3rem;">Fetch
+                Headlines 📰</button>
+        </div>
+
+        <p class="feedback info" id="g4-error" style="margin-top:1rem;"></p>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LOGIC SCRIPT -->
+    <!-- ========================================== -->
+    <script>
+        // ==========================================
+        // CONFIGURATION & CATEGORIES
+        // ==========================================
+        const TMDB_API_KEY = 'ac0815ca758248121d04f8ae3b11d722';
+        const GEMINI_API_KEY = 'AIzaSyBtT_pNsA0-nKWrjIc-i-NBzzI4j3BQYM4'; // ⚠️ RE-INSERT YOUR API KEY HERE
+
+        const G2_CATEGORIES = [
+            { id: 'blockbusters', icon: '🌟', title: 'Famous Blockbusters', desc: 'The biggest, most popular hits.', params: '&sort_by=popularity.desc&vote_count.gte=10000&vote_average.gte=7.0', hintInst: 'Give a grand, exciting hint about this famous blockbuster without mentioning the title.' },
+            { id: 'underrated', icon: '💎', title: 'Underrated Gems', desc: 'Hidden masterpieces (7.5+ rating).', params: '&sort_by=vote_average.desc&vote_count.gte=1000&vote_count.lte=10000&vote_average.gte=7.5', hintInst: 'Give a hint that describes this underrated film without mentioning its title. Make the hint intriguing enough to make players curious.' },
+            { id: 'classics', icon: '🎭', title: 'Hollywood Classics', desc: 'Pre-1990 legendary films.', params: '&primary_release_date.lte=1990-01-01&vote_average.gte=7.5&vote_count.gte=5000&sort_by=vote_average.desc', hintInst: 'Give a historically contextual hint about this classic film without revealing its title.' },
+            { id: 'world', icon: '🌍', title: 'World Cinema', desc: 'Acclaimed non-English films.', params: '&with_original_language=!en&vote_average.gte=7.5&vote_count.gte=2000&sort_by=vote_average.desc', hintInst: 'Give a culturally rich hint about this non-English world cinema film without revealing its title.' },
+            { id: 'oscar', icon: '🏆', title: 'Oscar Winners', desc: 'Critically acclaimed (8.0+).', params: '&vote_average.gte=8.0&vote_count.gte=5000&sort_by=vote_average.desc', hintInst: 'Give a prestigious hint appropriate for an award-winning film without mentioning the title.' },
+            { id: 'cult', icon: '😱', title: 'Cult Classics', desc: 'Horror, Sci-Fi, Thrillers.', params: '&with_genres=27|878|53&vote_average.gte=7.0&vote_count.gte=3000&sort_by=vote_average.desc', hintInst: 'Give a weird, eerie, or thrilling hint about this cult classic without revealing the title.' }
+        ];
+
+        const G3_CATEGORIES = [
+            { id: 'classics', icon: '🎬', title: 'All Time Classics', desc: 'Legendary films from 70s-90s', prompt: 'Legendary and universally famous films from the 1970s to 1990s.' },
+            { id: 'action', icon: '💥', title: 'Action & Adventure', desc: 'Explosions, heroes, and epics', prompt: 'Action, adventure, or blockbuster epic movies.' },
+            { id: 'comedy', icon: '😂', title: 'Comedy & Romance', desc: 'Laughs and love stories', prompt: 'Famous comedy or romantic comedy movies.' },
+            { id: 'scifi', icon: '🚀', title: 'Sci-Fi & Fantasy', desc: 'Space, magic, and the future', prompt: 'Iconic sci-fi or fantasy movies.' }
+        ];
+
+        const G4_CATEGORIES = [
+            { id: 'world', icon: '🌍', title: 'World News', desc: 'Action & Adventure', prompt: 'Action, adventure, war, or disaster movies.' },
+            { id: 'crime', icon: '🔪', title: 'Crime Beat', desc: 'Thriller & Mystery', prompt: 'Thriller, mystery, crime, or heist movies.' },
+            { id: 'science', icon: '🚀', title: 'Science & Tech', desc: 'Sci-Fi & Cyberpunk', prompt: 'Sci-Fi, alien, cyberpunk, or futuristic movies.' },
+            { id: 'strange', icon: '👻', title: 'Strange & Bizarre', desc: 'Horror & Fantasy', prompt: 'Horror, supernatural, magic, or fantasy movies.' },
+            { id: 'ent', icon: '🎭', title: 'Entertainment', desc: 'Drama & Romance', prompt: 'Drama, romance, comedy, or high school movies.' }
+        ];
+
+        // ==========================================
+        // SHARED UTILS
+        // ==========================================
+        function normalizeString(str) {
+            return str.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .replace(/^(the|a|an)\s+/i, '')
+                .trim()
+                .replace(/\s+/g, ' ');
+        }
+
+        // Levenshtein distance for near misses
+        function levenshtein(a, b) {
+            const m = [], l1 = a.length, l2 = b.length;
+            for (let i = 0; i <= l1; i++) {
+                m[i] = [i]; if (i === 0) continue;
+                for (let j = 0; j <= l2; j++) {
+                    m[0][j] = j; if (j === 0) continue;
+                    m[i][j] = b.charAt(j - 1) === a.charAt(i - 1) ? m[i - 1][j - 1] : Math.min(m[i - 1][j - 1] + 1, m[i][j - 1] + 1, m[i - 1][j] + 1);
+                }
+            } return m[l1][l2];
+        }
+
+        function validateGuess(guess, title) {
+            const normG = normalizeString(guess);
+            const normT = normalizeString(title);
+
+            if (!normG) return 'wrong';
+            if (normG === normT) return 'correct';
+            // Count as correct if user types partial title AND it's significant
+            if (normT.includes(normG) && normG.length > 4 && normG.length > normT.length * 0.4) return 'correct';
+            if (normG.includes(normT) && normT.length > 3) return 'correct';
+
+            // Near miss check using edit distance
+            const dist = levenshtein(normG, normT);
+            if (dist <= 2 || (normT.length > 8 && dist <= 3)) return 'near_miss';
+
+            // Near miss check by significant word overlap
+            const wordsT = normT.split(' ').filter(w => w.length > 2);
+            const wordsG = normG.split(' ').filter(w => w.length > 2);
+            let shared = 0;
+            wordsT.forEach(wt => { if (wordsG.includes(wt)) shared++; });
+            if (shared > 0 && Math.abs(normG.length - normT.length) <= 5) return 'near_miss';
+
+            return 'wrong';
+        }
+
+        function triggerConfetti() {
+            const emojis = ['🍿', '🎬', '🌟', '🎥', '🎟️', '🏆'];
+            for (let i = 0; i < 40; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                confetti.style.left = (Math.random() * 100) + 'vw';
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = (Math.random() * 0.5) + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 5000);
+            }
+        }
+
+        function cleanJSON(data) {
+            let txt = data.candidates[0].content.parts[0].text.trim();
+            txt = txt.replace(/^```(json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+            // try to extract JSON if it's still wrapped in markdown somewhere
+            const match = txt.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+            if (match) txt = match[0];
+            
+            let parsed = JSON.parse(txt);
+            if (Array.isArray(parsed)) parsed = parsed[0];
+            
+            // If it's wrapped in a parent key like { "movie": { "movie_title": ... } }
+            if (parsed && typeof parsed === 'object' && !parsed.movie_title && !parsed.quote && !parsed.headline) {
+                for (let key in parsed) {
+                    if (parsed[key] && typeof parsed[key] === 'object') {
+                        return parsed[key];
+                    }
+                }
+            }
+            return parsed;
+        }
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        async function cinematicTransition(callback) {
+            const bars = document.querySelector('.cinematic-bars');
+            if(bars) bars.parentElement.classList.add('cinematic-active');
+            
+            await new Promise(r => setTimeout(r, 600)); // wait for bars to close
+            if (callback) await callback();
+            
+            const flash = document.querySelector('.film-flash');
+            if(flash) {
+                flash.classList.add('flash-active');
+                setTimeout(() => flash.classList.remove('flash-active'), 150);
+            }
+            if(bars) bars.parentElement.classList.remove('cinematic-active');
+        }
+
+        function goToLanding() { cinematicTransition(() => switchScreen('landing-screen')); }
+        function initGame1() { cinematicTransition(() => switchScreen('game-1-screen')); }
+        function initGame2() { cinematicTransition(() => switchScreen('game-2-screen')); }
+        function initGame3() { cinematicTransition(() => switchScreen('game-3-screen')); }
+        function initGame4() { cinematicTransition(() => switchScreen('game-4-screen')); }
+
+        // ==========================================
+        // HOLLYWOOD GLAMOUR - GLOBAL EFFECTS
+        // ==========================================
+        // Gold Particles
+        for(let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'gold-particle';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.width = Math.random() * 4 + 2 + 'px';
+            p.style.height = p.style.width;
+            p.style.animationDelay = Math.random() * 15 + 's';
+            p.style.animationDuration = Math.random() * 10 + 10 + 's';
+            document.body.appendChild(p);
+        }
+
+        // Spotlight Cursor
+        if (!('ontouchstart' in window)) {
+            let ticking = false;
+            document.addEventListener('mousemove', (e) => {
+                if (!ticking) {
+                    window.requestAnimationFrame(() => {
+                        document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+                        document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+        }
+
+        // 3D Card Tilt Effect
+        document.querySelectorAll('.arcade-card').forEach(card => {
+            if ('ontouchstart' in window) return; // disable 3d on mobile
+            
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                
+                const factor = 15; // Max 15 degree tilt
+                const xDeg = -(y / (rect.height/2)) * factor;
+                const yDeg = (x / (rect.width/2)) * factor;
+
+                card.style.transform = `perspective(1000px) rotateX(${xDeg}deg) rotateY(${yDeg}deg) translateZ(20px)`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)`;
+            });
+        });
+
+        // ==========================================
+        // HOLLYWOOD GLAMOUR - GLOBAL EFFECTS
+        // ==========================================
+        // Gold Particles
+        for(let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'gold-particle';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.width = Math.random() * 4 + 2 + 'px';
+            p.style.height = p.style.width;
+            p.style.animationDelay = Math.random() * 15 + 's';
+            p.style.animationDuration = Math.random() * 10 + 10 + 's';
+            document.body.appendChild(p);
+        }
+
+        // Spotlight Cursor
+        if (!('ontouchstart' in window)) {
+            let ticking = false;
+            document.addEventListener('mousemove', (e) => {
+                if (!ticking) {
+                    window.requestAnimationFrame(() => {
+                        document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+                        document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+        }
+
+        // 3D Card Tilt Effect
+        document.querySelectorAll('.arcade-card').forEach(card => {
+            if ('ontouchstart' in window) return; // disable 3d on mobile
+            
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                
+                const factor = 15; // Max 15 degree tilt
+                const xDeg = -(y / (rect.height/2)) * factor;
+                const yDeg = (x / (rect.width/2)) * factor;
+
+                card.style.transform = `perspective(1000px) rotateX(${xDeg}deg) rotateY(${yDeg}deg) translateZ(20px)`;
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)`;
+            });
+        });
+
+        // ==========================================
+        // GAME 1: PLOT GUESSER
+        // ==========================================
+        let g1_state = JSON.parse(localStorage.getItem('arcade_g1')) || { score: 0, streak: 0, difficulty: 'Medium', playedMovies: [], attempts: 3, currentMovie: null };
+        function saveG1() { localStorage.setItem('arcade_g1', JSON.stringify({ score: g1_state.score, streak: g1_state.streak, difficulty: g1_state.difficulty, playedMovies: g1_state.playedMovies })); }
+
+        // UI init
+        document.getElementById('g1-score').textContent = g1_state.score;
+        document.getElementById('g1-streak').textContent = g1_state.streak;
+        document.querySelectorAll('.g1-diff').forEach(b => {
+            if (b.dataset.diff === g1_state.difficulty) b.classList.add('selected');
+            b.addEventListener('click', (e) => {
+                document.querySelectorAll('.g1-diff').forEach(x => x.classList.remove('selected'));
+                e.target.classList.add('selected');
+                g1_state.difficulty = e.target.dataset.diff;
+                saveG1();
+            });
+        });
+
+        async function fetchGeminiPlot() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY_HERE') throw new Error("Gemini API Key missing!");
+            let diffCtx = g1_state.difficulty === "Easy" ? "Extremely popular blockbuster movies." : (g1_state.difficulty === "Hard" ? "Cult classics/indie." : "Well known acclaimed films.");
+            let playedCtx = g1_state.playedMovies.length > 0 ? `\nCRITICAL: EXCLUDE these: ${g1_state.playedMovies.slice(-20).join(', ')}` : "";
+            const prompt = `Generate movie clues based on diff: ${g1_state.difficulty}. Context: ${diffCtx}${playedCtx}
+Provide EXACT JSON: { "movie_title": "...", "plot_hint": "cryptic plot without name", "actors": ["a","b","c"], "genre":"...", "decade":"...", "director":"...", "extra_hint":"..."}`;
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: "application/json" } })
+            });
+            if (!res.ok) throw new Error("API Fetch Failed");
+            const data = await res.json();
+            return cleanJSON(data);
+        }
+
+        document.getElementById('g1-start-btn').addEventListener('click', startG1);
+        document.getElementById('g1-next-btn').addEventListener('click', startG1);
+
+        async function startG1() {
+            document.getElementById('g1-setup-area').style.display = 'none';
+            document.getElementById('g1-next-btn').style.display = 'none';
+            document.getElementById('g1-input-area').style.display = 'none';
+            document.getElementById('g1-feedback').className = "feedback info";
+            document.getElementById('g1-feedback').textContent = "Generating clues via Gemini...";
+            document.getElementById('g1-clue-plot').textContent = "Waiting...";
+            document.getElementById('g1-clue-actors').innerHTML = "";
+            document.querySelectorAll('#g1-extra-hints .hint-item').forEach(e => e.style.display = 'none');
+            document.querySelectorAll('.g1-dot').forEach(d => d.classList.remove('lost'));
+
+            try {
+                const data = await fetchGeminiPlot();
+                g1_state.currentMovie = data;
+                g1_state.attempts = 3;
+                if (!g1_state.playedMovies.includes(data.movie_title)) {
+                    g1_state.playedMovies.push(data.movie_title); saveG1();
+                }
+
+                document.getElementById('g1-clue-plot').textContent = `"${data.plot_hint}"`;
+                (data.actors || []).forEach(a => { const s = document.createElement('span'); s.className = 'actor-tag'; s.textContent = a; document.getElementById('g1-clue-actors').appendChild(s); });
+                document.getElementById('g1-hint-genre').textContent = `${data.genre}, ${data.decade}`;
+                document.getElementById('g1-hint-director').textContent = data.director;
+                document.getElementById('g1-hint-extra').textContent = data.extra_hint;
+
+                document.getElementById('g1-input-area').style.display = 'flex';
+                document.getElementById('g1-guess-input').value = '';
+                document.getElementById('g1-guess-input').disabled = false;
+                document.getElementById('g1-submit-btn').disabled = false;
+                document.getElementById('g1-feedback').textContent = '';
+                document.getElementById('g1-guess-input').focus();
+            } catch (e) {
+                document.getElementById('g1-feedback').className = "feedback wrong";
+                document.getElementById('g1-feedback').textContent = e.message;
+                document.getElementById('g1-setup-area').style.display = 'block';
+            }
+        }
+
+        document.getElementById('g1-submit-btn').addEventListener('click', handleG1Guess);
+        document.getElementById('g1-guess-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleG1Guess(); });
+
+        function handleG1Guess() {
+            const inp = document.getElementById('g1-guess-input');
+            const feedback = document.getElementById('g1-feedback');
+            const val = inp.value.trim(); if (!val) return;
+            const res = validateGuess(val, g1_state.currentMovie.movie_title);
+
+            if (res === 'correct') {
+                g1_state.score += g1_state.attempts; g1_state.streak++; saveG1();
+                document.getElementById('g1-score').textContent = g1_state.score; document.getElementById('g1-streak').textContent = g1_state.streak;
+                feedback.className = "feedback correct"; feedback.innerHTML = `🎉 CORRECT! <br><span class="bebas" style="font-size:1.8rem;">${g1_state.currentMovie.movie_title}</span>`;
+                endG1Round(); triggerConfetti();
+            } else if (res === 'near_miss') {
+                feedback.className = "feedback info"; feedback.textContent = "So close! Try again.";
+                inp.style.transform = "translateX(10px)"; setTimeout(() => inp.style.transform = "translateX(-10px)", 100); setTimeout(() => inp.style.transform = "translateX(0)", 200);
+            } else {
+                g1_state.attempts--;
+                document.querySelectorAll('.g1-dot')[g1_state.attempts].classList.add('lost');
+                inp.value = '';
+                feedback.className = "feedback wrong"; feedback.textContent = "❌ Incorrect!";
+                inp.style.transform = "translateX(10px)"; setTimeout(() => inp.style.transform = "translateX(-10px)", 100); setTimeout(() => inp.style.transform = "translateX(0)", 200);
+
+                if (g1_state.attempts === 2) { document.getElementById('g1-hint-1').style.display = 'block'; }
+                else if (g1_state.attempts === 1) { document.getElementById('g1-hint-2').style.display = 'block'; }
+                else {
+                    g1_state.streak = 0; saveG1(); document.getElementById('g1-streak').textContent = 0;
+                    document.getElementById('g1-hint-3').style.display = 'block';
+                    feedback.innerHTML = `💀 OUT OF ATTEMPTS! <br><span class="bebas" style="font-size:1.8rem; color:var(--gold);">${g1_state.currentMovie.movie_title}</span>`;
+                    endG1Round();
+                }
+            }
+            if (g1_state.attempts > 0) inp.focus();
+        }
+
+        function endG1Round() {
+            document.getElementById('g1-guess-input').disabled = true;
+            document.getElementById('g1-submit-btn').disabled = true;
+            document.getElementById('g1-input-area').style.display = 'none';
+            document.getElementById('g1-next-btn').style.display = 'inline-flex';
+        }
+
+        // ==========================================
+        // GAME 2: POSTER GUESSER
+        // ==========================================
+        let g2_state = JSON.parse(localStorage.getItem('arcade_g2')) || { score: 0, streak: 0, bestStreak: 0, difficulty: 'Medium', category: 'blockbusters', playedMovies: [], attempts: 3, currentMovie: null };
+        function saveG2() { localStorage.setItem('arcade_g2', JSON.stringify({ score: g2_state.score, streak: g2_state.streak, bestStreak: g2_state.bestStreak, difficulty: g2_state.difficulty, category: g2_state.category, playedMovies: g2_state.playedMovies })); }
+
+        // UI init
+        document.getElementById('g2-score').textContent = g2_state.score;
+        document.getElementById('g2-streak').textContent = g2_state.streak;
+        document.getElementById('g2-best-streak').textContent = g2_state.bestStreak;
+
+        // Render Categories
+        const catContainer = document.getElementById('g2-category');
+        G2_CATEGORIES.forEach(cat => {
+            const card = document.createElement('div');
+            card.className = `cat-card ${g2_state.category === cat.id ? 'selected' : ''}`;
+            card.dataset.id = cat.id;
+            card.innerHTML = `<div class="cat-icon">${cat.icon}</div><div class="cat-title">${cat.title}</div><div class="cat-desc">${cat.desc}</div>`;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                g2_state.category = cat.id;
+                saveG2();
+            });
+            catContainer.appendChild(card);
+        });
+
+        document.querySelectorAll('.g2-diff').forEach(b => {
+            if (b.dataset.diff === g2_state.difficulty) b.classList.add('selected');
+            b.addEventListener('click', (e) => {
+                document.querySelectorAll('.g2-diff').forEach(x => x.classList.remove('selected'));
+                e.target.classList.add('selected');
+                g2_state.difficulty = e.target.dataset.diff;
+                saveG2();
+            });
+        });
+
+        async function fetchTMDBMovie() {
+            const catConfig = G2_CATEGORIES.find(c => c.id === g2_state.category) || G2_CATEGORIES[0];
+            let pages = g2_state.difficulty === 'Easy' ? 1 : (g2_state.difficulty === 'Medium' ? 3 : 5);
+            const rndPage = Math.floor(Math.random() * pages) + 1;
+
+            const res = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&page=${rndPage}${catConfig.params}`);
+            const data = await res.json();
+
+            let movies = data.results.filter(m => m.backdrop_path && !g2_state.playedMovies.includes(m.id));
+            if (movies.length === 0) return fetchTMDBMovie(); // fallback
+            const rndMovie = movies[Math.floor(Math.random() * movies.length)];
+
+            const detRes = await fetch(`https://api.themoviedb.org/3/movie/${rndMovie.id}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+            const details = await detRes.json();
+
+            if (!details.backdrop_path) return fetchTMDBMovie(); // double check on detailed view
+
+            return {
+                id: details.id,
+                title: details.title,
+                poster: `https://image.tmdb.org/t/p/original${details.backdrop_path}`,
+                year: details.release_date ? details.release_date.split('-')[0] : 'Unknown',
+                genres: details.genres.map(g => g.name).join(', '),
+                director: details.credits.crew.find(c => c.job === 'Director')?.name || 'Unknown',
+                cast: details.credits.cast.slice(0, 4).map(c => c.name).join(', '),
+                rating: details.vote_average.toFixed(1),
+                plot: details.overview
+            };
+        }
+
+        async function fetchGeminiPosterHint() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY_HERE') return "System Error: Gemini API Key missing for hints.";
+            document.getElementById('g2-gemini-hint').style.display = 'block';
+            document.getElementById('g2-gemini-hint').innerHTML = '<span class="loader" style="display:inline-block; border-width:2px; width:15px; height:15px; margin:0 10px 0 0; vertical-align:middle; border-top-color:#FFD700;"></span> Analyzing TMDB Metadata...';
+
+            const cm = g2_state.currentMovie;
+            const catConfig = G2_CATEGORIES.find(c => c.id === g2_state.category) || G2_CATEGORIES[0];
+            const attempt = 3 - g2_state.attempts;
+
+            const prompt = `I am making a movie image guessing game. The user failed attempt ${attempt}. 
+Full Movie Details (DO NOT show the title to the user): 
+Title: "${cm.title}" (${cm.year}), Director: ${cm.director}, Cast: ${cm.cast}.
+${catConfig.hintInst}
+${attempt === 2 ? 'Make this 2nd hint more revealing than the first.' : 'Make it somewhat challenging but helpful.'}`;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.8 } })
+                });
+                const data = await res.json();
+                const hint = data.candidates[0].content.parts[0].text.trim();
+                document.getElementById('g2-gemini-hint').innerHTML = hint;
+            } catch (e) {
+                document.getElementById('g2-gemini-hint').innerHTML = "Could not generate AI hint: " + e.message;
+            }
+        }
+
+        document.getElementById('g2-start-btn').addEventListener('click', startG2);
+        document.getElementById('g2-next-btn').addEventListener('click', startG2);
+
+        async function startG2() {
+            document.getElementById('g2-setup-area').style.display = 'none';
+            document.getElementById('g2-next-btn').style.display = 'none';
+            document.getElementById('g2-error').textContent = '';
+            document.getElementById('g2-loader').style.display = 'block';
+            document.getElementById('g2-game-content').style.display = 'none';
+
+            try {
+                const data = await fetchTMDBMovie();
+                g2_state.currentMovie = data;
+                g2_state.attempts = 3;
+                g2_state.playedMovies.push(data.id);
+                saveG2();
+
+                // Set Image
+                const poster = document.getElementById('g2-poster');
+                poster.src = data.poster;
+
+                // Wait for image load
+                await new Promise((resolve, reject) => {
+                    poster.onload = resolve;
+                    poster.onerror = reject;
+                    setTimeout(reject, 5000); // 5s timeout
+                });
+
+                document.getElementById('g2-loader').style.display = 'none';
+                document.getElementById('g2-game-content').style.display = 'flex';
+
+                const decade = data.year === 'Unknown' ? 'Unknown' : (data.year.substring(0, 3) + '0s');
+                document.getElementById('g2-genre').textContent = data.genres;
+                document.getElementById('g2-decade').textContent = decade;
+                document.getElementById('g2-gemini-hint').style.display = 'none';
+
+                document.querySelectorAll('.g2-dot').forEach(d => d.classList.remove('lost'));
+                document.getElementById('g2-details-card').style.display = 'none';
+
+                const inp = document.getElementById('g2-guess-input');
+                document.getElementById('g2-input-area').style.display = 'flex';
+                inp.value = ''; inp.disabled = false;
+                document.getElementById('g2-submit-btn').disabled = false;
+                document.getElementById('g2-feedback').textContent = '';
+                inp.focus();
+
+            } catch (e) {
+                document.getElementById('g2-loader').style.display = 'none';
+                document.getElementById('g2-setup-area').style.display = 'block';
+                document.getElementById('g2-error').textContent = "Failed to fetch/load poster: " + (e.message || "Network Error");
+            }
+        }
+
+        document.getElementById('g2-submit-btn').addEventListener('click', handleG2Guess);
+        document.getElementById('g2-guess-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleG2Guess(); });
+
+        function handleG2Guess() {
+            const inp = document.getElementById('g2-guess-input');
+            const feedback = document.getElementById('g2-feedback');
+            const val = inp.value.trim(); if (!val) return;
+            const res = validateGuess(val, g2_state.currentMovie.title);
+
+            if (res === 'correct') {
+                const pts = g2_state.attempts === 3 ? 5 : (g2_state.attempts === 2 ? 3 : 1);
+                g2_state.score += pts;
+                g2_state.streak++;
+                if (g2_state.streak > g2_state.bestStreak) g2_state.bestStreak = g2_state.streak;
+                saveG2();
+
+                document.getElementById('g2-score').textContent = g2_state.score;
+                document.getElementById('g2-streak').textContent = g2_state.streak;
+                document.getElementById('g2-best-streak').textContent = g2_state.bestStreak;
+
+                feedback.className = "feedback correct"; feedback.innerHTML = `🎉 SPOT ON! (+${pts} pts)`;
+                triggerConfetti();
+                endG2Round();
+            } else if (res === 'near_miss') {
+                feedback.className = "feedback info"; feedback.textContent = "So close! Adjust spelling.";
+                shakeInput(inp);
+            } else {
+                g2_state.attempts--;
+                document.querySelectorAll('.g2-dot')[g2_state.attempts].classList.add('lost');
+                inp.value = '';
+                shakeInput(inp);
+
+                if (g2_state.attempts > 0) {
+                    feedback.className = "feedback wrong"; feedback.textContent = "❌ Not quite! Have a hint.";
+                    fetchGeminiPosterHint(); // Async request to Gemini
+                    inp.focus();
+                } else {
+                    g2_state.streak = 0; saveG2();
+                    document.getElementById('g2-streak').textContent = 0;
+                    feedback.className = "feedback wrong"; feedback.textContent = `💀 OUT OF LIVES!`;
+                    endG2Round();
+                }
+            }
+        }
+
+        function shakeInput(el) {
+            el.style.transform = "translateX(5px)"; setTimeout(() => el.style.transform = "translateX(-5px)", 100); setTimeout(() => el.style.transform = "translateX(0)", 200);
+        }
+
+        function endG2Round() {
+            document.getElementById('g2-guess-input').disabled = true;
+            document.getElementById('g2-submit-btn').disabled = true;
+            document.getElementById('g2-input-area').style.display = 'none';
+            document.getElementById('g2-next-btn').style.display = 'inline-flex';
+
+            const cm = g2_state.currentMovie;
+            document.getElementById('g2-dc-title').textContent = cm.title;
+            document.getElementById('g2-dc-year').textContent = cm.year;
+            document.getElementById('g2-dc-director').textContent = cm.director;
+            document.getElementById('g2-dc-cast').textContent = cm.cast;
+            document.getElementById('g2-dc-rating').textContent = cm.rating;
+            document.getElementById('g2-dc-plot').textContent = cm.plot;
+            document.getElementById('g2-details-card').style.display = 'block';
+        }
+
+        // ==========================================
+        // GAME 3: GUESS THE QUOTE
+        // ==========================================
+        let g3_state = JSON.parse(localStorage.getItem('arcade_g3')) || { score: 0, streak: 0, difficulty: 'Medium', category: 'classics', playedQuotes: [], attempts: 3, currentQuote: null };
+        function saveG3() { localStorage.setItem('arcade_g3', JSON.stringify({ score: g3_state.score, streak: g3_state.streak, difficulty: g3_state.difficulty, category: g3_state.category, playedQuotes: g3_state.playedQuotes })); }
+
+        // UI init
+        document.getElementById('g3-score').textContent = g3_state.score;
+        document.getElementById('g3-streak').textContent = g3_state.streak;
+
+        // Render Categories
+        const g3CatContainer = document.getElementById('g3-category');
+        G3_CATEGORIES.forEach(cat => {
+            const card = document.createElement('div');
+            card.className = `cat-card ${g3_state.category === cat.id ? 'selected' : ''}`;
+            card.dataset.id = cat.id;
+            card.innerHTML = `<div class="cat-icon">${cat.icon}</div><div class="cat-title">${cat.title}</div><div class="cat-desc">${cat.desc}</div>`;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('#g3-category .cat-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                g3_state.category = cat.id;
+                saveG3();
+            });
+            g3CatContainer.appendChild(card);
+        });
+
+        document.querySelectorAll('.g3-diff').forEach(b => {
+            if (b.dataset.diff === g3_state.difficulty) b.classList.add('selected');
+            b.addEventListener('click', (e) => {
+                document.querySelectorAll('.g3-diff').forEach(x => x.classList.remove('selected'));
+                e.target.classList.add('selected');
+                g3_state.difficulty = e.target.dataset.diff;
+                saveG3();
+            });
+        });
+
+        async function fetchGeminiQuote() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY_HERE') throw new Error("Gemini API Key missing!");
+
+            const catConfig = G3_CATEGORIES.find(c => c.id === g3_state.category) || G3_CATEGORIES[0];
+            let diffCtx = g3_state.difficulty === "Easy" ? "Super iconic quotes everyone knows (e.g., 'I\\'ll be back', 'You can\\'t handle the truth')." :
+                (g3_state.difficulty === "Hard" ? "Cult classic or underrated movie quotes, much harder to guess." :
+                    "Famous but slightly less obvious quotes.");
+
+            let playedCtx = g3_state.playedQuotes.length > 0 ? `\nCRITICAL: EXCLUDE quotes from these movies: ${g3_state.playedQuotes.slice(-20).join(', ')}` : "";
+
+            const prompt = `Generate a famous iconic movie quote for a guessing game.
+Context: ${catConfig.prompt}
+Difficulty: ${diffCtx}
+${playedCtx}
+
+Rules for generating quote:
+- Quote must be genuinely famous and recognizable
+- Do NOT include movie title anywhere in the quote
+- Do NOT include actor name in the quote
+
+Return strictly in this JSON format only:
+{
+  "movie_title": "...",
+  "quote": "...",
+  "character_name": "...",
+  "actor_name": "...",
+  "genre": "...",
+  "decade": "...",
+  "scene_description": "Brief description of the scene without mentioning movie title...",
+  "difficulty": "easy/medium/hard",
+  "fun_fact": "An interesting fact about this quote..."
+}`;
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: "application/json" } })
+            });
+            if (!res.ok) throw new Error("API Fetch Failed");
+            const data = await res.json();
+            return cleanJSON(data);
+        }
+
+        document.getElementById('g3-start-btn').addEventListener('click', startG3);
+        document.getElementById('g3-next-btn').addEventListener('click', startG3);
+
+        async function startG3() {
+            document.getElementById('g3-setup-area').style.display = 'none';
+            document.getElementById('g3-next-btn').style.display = 'none';
+            document.getElementById('g3-input-area').style.display = 'none';
+            document.getElementById('g3-game-content').style.display = 'none';
+            document.getElementById('g3-error').textContent = '';
+            document.getElementById('g3-loader').style.display = 'block';
+
+            // Reset hint UI
+            document.getElementById('g3-hint-actor').style.display = 'none';
+            document.getElementById('g3-hint-genre').style.display = 'none';
+            document.getElementById('g3-hint-scene').style.display = 'none';
+            document.getElementById('g3-feedback').textContent = '';
+            document.getElementById('g3-details-card').style.display = 'none';
+            document.querySelectorAll('.g3-dot').forEach(d => { d.style.opacity = '1'; d.style.transform = 'scale(1)'; });
+
+            try {
+                const data = await fetchGeminiQuote();
+                g3_state.currentQuote = data;
+                g3_state.attempts = 3;
+                if (!g3_state.playedQuotes.includes(data.movie_title)) {
+                    g3_state.playedQuotes.push(data.movie_title); saveG3();
+                }
+
+                // Populate data
+                document.getElementById('g3-quote-text').textContent = data.quote;
+                document.getElementById('g3-hint-actor-val').textContent = `${data.actor_name} as ${data.character_name}`;
+                document.getElementById('g3-hint-genre-val').textContent = `${data.genre}, ${data.decade}`;
+                document.getElementById('g3-hint-scene-val').textContent = data.scene_description;
+
+                document.getElementById('g3-loader').style.display = 'none';
+                document.getElementById('g3-game-content').style.display = 'flex';
+                document.getElementById('g3-input-area').style.display = 'flex';
+
+                const inp = document.getElementById('g3-guess-input');
+                inp.value = ''; inp.disabled = false;
+                document.getElementById('g3-submit-btn').disabled = false;
+                inp.focus();
+            } catch (e) {
+                document.getElementById('g3-loader').style.display = 'none';
+                document.getElementById('g3-setup-area').style.display = 'block';
+                document.getElementById('g3-error').textContent = "Failed to generate AI Quote: " + e.message;
+            }
+        }
+
+        document.getElementById('g3-submit-btn').addEventListener('click', handleG3Guess);
+        document.getElementById('g3-guess-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleG3Guess(); });
+
+        function handleG3Guess() {
+            const inp = document.getElementById('g3-guess-input');
+            const feedback = document.getElementById('g3-feedback');
+            const val = inp.value.trim(); if (!val) return;
+            const res = validateGuess(val, g3_state.currentQuote.movie_title);
+
+            if (res === 'correct') {
+                const pts = g3_state.attempts === 3 ? 5 : (g3_state.attempts === 2 ? 3 : (g3_state.attempts === 1 ? 2 : 1));
+                g3_state.score += pts;
+                g3_state.streak++;
+                saveG3();
+
+                document.getElementById('g3-score').textContent = g3_state.score;
+                document.getElementById('g3-streak').textContent = g3_state.streak;
+
+                feedback.className = "feedback correct"; feedback.innerHTML = `🎉 SPOT ON! (+${pts} pts)`;
+                triggerConfetti();
+                endG3Round();
+            } else if (res === 'near_miss') {
+                feedback.className = "feedback info"; feedback.innerHTML = "So Close! Try again 🎬";
+                shakeInput(inp);
+            } else {
+                g3_state.attempts--;
+                const dots = document.querySelectorAll('.g3-dot');
+                dots[g3_state.attempts].style.opacity = '0.2';
+                dots[g3_state.attempts].style.transform = 'scale(0.8)';
+
+                inp.value = '';
+                shakeInput(inp);
+
+                if (g3_state.attempts === 2) {
+                    document.getElementById('g3-hint-actor').style.display = 'block';
+                    feedback.className = "feedback wrong"; feedback.textContent = "❌ Incorrect! Here's the actor.";
+                } else if (g3_state.attempts === 1) {
+                    document.getElementById('g3-hint-genre').style.display = 'block';
+                    feedback.className = "feedback wrong"; feedback.textContent = "❌ Incorrect! Here's the genre.";
+                } else {
+                    document.getElementById('g3-hint-scene').style.display = 'block';
+                    g3_state.streak = 0; saveG3();
+                    document.getElementById('g3-streak').textContent = 0;
+                    feedback.className = "feedback wrong"; feedback.innerHTML = `💀 OUT OF ATTEMPTS!`;
+                    endG3Round();
+                }
+                if (g3_state.attempts > 0) inp.focus();
+            }
+        }
+
+        function endG3Round() {
+            document.getElementById('g3-guess-input').disabled = true;
+            document.getElementById('g3-submit-btn').disabled = true;
+            document.getElementById('g3-input-area').style.display = 'none';
+            document.getElementById('g3-next-btn').style.display = 'inline-flex';
+
+            const cq = g3_state.currentQuote;
+            document.getElementById('g3-dc-title').textContent = cq.movie_title;
+            document.getElementById('g3-dc-quote-full').textContent = `"${cq.quote}"`;
+            document.getElementById('g3-dc-actor').textContent = cq.actor_name;
+            document.getElementById('g3-dc-char').textContent = cq.character_name;
+            document.getElementById('g3-dc-year').textContent = cq.decade;
+            document.getElementById('g3-dc-funfact').innerHTML = `<strong>💡 Fun Fact:</strong> ${cq.fun_fact}`;
+            document.getElementById('g3-details-card').style.display = 'block';
+
+            // Ensure all hints are visible on reveal
+            document.getElementById('g3-hint-actor').style.display = 'block';
+            document.getElementById('g3-hint-genre').style.display = 'block';
+            document.getElementById('g3-hint-scene').style.display = 'block';
+        }
+
+        // ==========================================
+        // GAME 4: BREAKING NEWS
+        // ==========================================
+        let g4_state = JSON.parse(localStorage.getItem('arcade_g4')) || { score: 0, streak: 0, difficulty: 'Medium', category: 'world', playedMovies: [], attempts: 3, currentNews: null };
+        function saveG4() { localStorage.setItem('arcade_g4', JSON.stringify({ score: g4_state.score, streak: g4_state.streak, difficulty: g4_state.difficulty, category: g4_state.category, playedMovies: g4_state.playedMovies })); }
+
+        // UI init
+        document.getElementById('g4-score').textContent = g4_state.score;
+        document.getElementById('g4-streak').textContent = g4_state.streak;
+
+        // Render Categories
+        const g4CatContainer = document.getElementById('g4-category');
+        G4_CATEGORIES.forEach(cat => {
+            const card = document.createElement('div');
+            card.className = `cat-card ${g4_state.category === cat.id ? 'selected' : ''}`;
+            card.dataset.id = cat.id;
+            card.innerHTML = `<div class="cat-icon">${cat.icon}</div><div class="cat-title">${cat.title}</div><div class="cat-desc">${cat.desc}</div>`;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('#g4-category .cat-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                g4_state.category = cat.id;
+                saveG4();
+            });
+            g4CatContainer.appendChild(card);
+        });
+
+        document.querySelectorAll('.g4-diff').forEach(b => {
+            if (b.dataset.diff === g4_state.difficulty) b.classList.add('selected');
+            b.addEventListener('click', (e) => {
+                document.querySelectorAll('.g4-diff').forEach(x => x.classList.remove('selected'));
+                e.target.classList.add('selected');
+                g4_state.difficulty = e.target.dataset.diff;
+                saveG4();
+            });
+        });
+
+        async function fetchGeminiNews() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY_HERE') throw new Error("Gemini API Key missing!");
+
+            const catConfig = G4_CATEGORIES.find(c => c.id === g4_state.category) || G4_CATEGORIES[0];
+            let diffCtx = g4_state.difficulty === "Easy" ? "Obvious headlines about very famous blockbuster movies." :
+                (g4_state.difficulty === "Hard" ? "Very cryptic headlines or cult classic movies." :
+                    "Clever but guessable headlines about well-known movies.");
+
+            let playedCtx = g4_state.playedMovies.length > 0 ? `\nCRITICAL: EXCLUDE these movies: ${g4_state.playedMovies.slice(-20).join(', ')}` : "";
+
+            const prompt = `You are a creative newspaper editor. Write a fake breaking news headline and short article excerpt about events from a famous movie, as if they were real news happening today.
+Context/Genre: ${catConfig.prompt}
+Difficulty: ${diffCtx}
+${playedCtx}
+
+Rules:
+- Do NOT mention the movie title anywhere.
+- Make it clever, funny, and dramatic.
+- Do NOT include character names in the headline (e.g. use "Local Man" instead of "Tony Stark").
+
+Return strictly in this JSON format only:
+{
+  "movie_title": "...",
+  "newspaper_name": "...",
+  "headline": "...",
+  "subheadline": "...",
+  "article_excerpt": "2-3 sentences of fake news article without revealing title.",
+  "reporter_name": "Fake reporter name",
+  "date": "Fake dramatic date",
+  "category": "WORLD/CRIME/SCIENCE/ENTERTAINMENT/SPORTS",
+  "breaking_tag": "BREAKING/EXCLUSIVE/DEVELOPING",
+  "hint_1": "Genre and decade of the movie",
+  "hint_2": "Famous actor in the movie (real world actor name)",
+  "hint_3": "One word that describes the movie theme",
+  "fun_fact": "Interesting real fact about this movie"
+}`;
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, responseMimeType: "application/json" } })
+            });
+            if (!res.ok) throw new Error("API Fetch Failed");
+            const data = await res.json();
+            return cleanJSON(data);
+        }
+
+        document.getElementById('g4-start-btn').addEventListener('click', startG4);
+        document.getElementById('g4-next-btn').addEventListener('click', startG4);
+
+        async function startG4() {
+            document.getElementById('g4-setup-area').style.display = 'none';
+            document.getElementById('g4-next-btn').style.display = 'none';
+            document.getElementById('g4-input-area').style.display = 'none';
+            document.getElementById('g4-game-content').style.display = 'none';
+            document.getElementById('g4-error').textContent = '';
+            document.getElementById('g4-loader').style.display = 'block';
+
+            // Reset hint UI
+            document.getElementById('g4-hint-1-box').style.display = 'none';
+            document.getElementById('g4-hint-2-box').style.display = 'none';
+            document.getElementById('g4-hint-3-box').style.display = 'none';
+            document.getElementById('g4-feedback').textContent = '';
+            document.getElementById('g4-details-card').style.display = 'none';
+            document.querySelectorAll('.g4-dot').forEach(d => { d.style.opacity = '1'; d.style.transform = 'scale(1)'; });
+
+            try {
+                const data = await fetchGeminiNews();
+                g4_state.currentNews = data;
+                g4_state.attempts = 3;
+                if (!g4_state.playedMovies.includes(data.movie_title)) {
+                    g4_state.playedMovies.push(data.movie_title); saveG4();
+                }
+
+                // Populate Newspaper UI
+                document.querySelector('.g4-np-title').textContent = data.newspaper_name;
+                document.getElementById('g4-np-date').textContent = data.date;
+                document.getElementById('g4-np-cat').textContent = data.category;
+                document.querySelector('.g4-np-breaking').textContent = data.breaking_tag;
+                document.getElementById('g4-np-headline').textContent = data.headline;
+                document.getElementById('g4-np-subhead').textContent = data.subheadline;
+                document.getElementById('g4-np-reporter').textContent = data.reporter_name;
+                document.getElementById('g4-np-article').textContent = data.article_excerpt;
+
+                // Hints
+                document.getElementById('g4-hint-1-val').textContent = data.hint_1;
+                document.getElementById('g4-hint-2-val').textContent = data.hint_2;
+                document.getElementById('g4-hint-3-val').textContent = data.hint_3;
+
+                document.getElementById('g4-loader').style.display = 'none';
+                document.getElementById('g4-game-content').style.display = 'flex';
+                document.getElementById('g4-input-area').style.display = 'flex';
+
+                const inp = document.getElementById('g4-guess-input');
+                inp.value = ''; inp.disabled = false;
+                document.getElementById('g4-submit-btn').disabled = false;
+                inp.focus();
+            } catch (e) {
+                document.getElementById('g4-loader').style.display = 'none';
+                document.getElementById('g4-setup-area').style.display = 'block';
+                document.getElementById('g4-error').textContent = "Failed to generate News: " + e.message;
+            }
+        }
+
+        document.getElementById('g4-submit-btn').addEventListener('click', handleG4Guess);
+        document.getElementById('g4-guess-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleG4Guess(); });
+
+        function handleG4Guess() {
+            const inp = document.getElementById('g4-guess-input');
+            const feedback = document.getElementById('g4-feedback');
+            const val = inp.value.trim(); if (!val) return;
+            const res = validateGuess(val, g4_state.currentNews.movie_title);
+
+            if (res === 'correct') {
+                const pts = g4_state.attempts === 3 ? 5 : (g4_state.attempts === 2 ? 3 : (g4_state.attempts === 1 ? 2 : 1));
+                g4_state.score += pts;
+                g4_state.streak++;
+                saveG4();
+
+                document.getElementById('g4-score').textContent = g4_state.score;
+                document.getElementById('g4-streak').textContent = g4_state.streak;
+
+                feedback.className = "feedback correct"; feedback.innerHTML = `🎉 SCOOP CONFIRMED! (+${pts} pts)`;
+                triggerConfetti();
+                endG4Round();
+            } else if (res === 'near_miss') {
+                feedback.className = "feedback info"; feedback.innerHTML = "CLOSE BUT NO SCOOP! 📰";
+                shakeInput(inp);
+            } else {
+                g4_state.attempts--;
+                const dots = document.querySelectorAll('.g4-dot');
+                dots[g4_state.attempts].style.opacity = '0.2';
+                dots[g4_state.attempts].style.transform = 'scale(0.8)';
+
+                inp.value = '';
+                shakeInput(inp);
+
+                if (g4_state.attempts === 2) {
+                    document.getElementById('g4-hint-1-box').style.display = 'block';
+                    feedback.className = "feedback wrong"; feedback.textContent = "❌ Fake news! See Editor's Note.";
+                } else if (g4_state.attempts === 1) {
+                    document.getElementById('g4-hint-2-box').style.display = 'block';
+                    feedback.className = "feedback wrong"; feedback.textContent = "❌ Not quite! Another note added.";
+                } else {
+                    document.getElementById('g4-hint-3-box').style.display = 'block';
+                    g4_state.streak = 0; saveG4();
+                    document.getElementById('g4-streak').textContent = 0;
+                    feedback.className = "feedback wrong"; feedback.innerHTML = `💀 STORY KILLED!`;
+                    endG4Round();
+                }
+                if (g4_state.attempts > 0) inp.focus();
+            }
+        }
+
+        function endG4Round() {
+            document.getElementById('g4-guess-input').disabled = true;
+            document.getElementById('g4-submit-btn').disabled = true;
+            document.getElementById('g4-input-area').style.display = 'none';
+            document.getElementById('g4-next-btn').style.display = 'inline-flex';
+
+            const cn = g4_state.currentNews;
+            document.getElementById('g4-dc-title').textContent = cn.movie_title;
+            document.getElementById('g4-dc-headline').textContent = cn.headline;
+            document.getElementById('g4-dc-year').textContent = cn.date;
+            document.getElementById('g4-dc-cat').textContent = cn.category;
+            document.getElementById('g4-dc-funfact').innerHTML = `<strong>💡 Truth File:</strong> ${cn.fun_fact}`;
+            document.getElementById('g4-details-card').style.display = 'block';
+
+            // Ensure all hints are visible on reveal
+            document.getElementById('g4-hint-1-box').style.display = 'block';
+            document.getElementById('g4-hint-2-box').style.display = 'block';
+            document.getElementById('g4-hint-3-box').style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>
